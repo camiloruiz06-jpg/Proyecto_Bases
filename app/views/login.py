@@ -1,7 +1,15 @@
 import flet as ft
+import hashlib
+from data_base.supabase_client import supabase
 
 
-def vista_login(page: ft.Page, ir_registro):
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def vista_login(page: ft.Page, ir_registro, ir_panel_admin, ir_menu_cliente):
+
+    mensaje_error = ft.Text("", color="red", size=13)
 
     titulo = ft.Text(
         "Sistema de Reservas",
@@ -32,10 +40,51 @@ def vista_login(page: ft.Page, ir_registro):
         prefix_icon=ft.Icons.LOCK
     )
 
-    boton_login = ft.ElevatedButton(
-            "Iniciar Sesión",
+    def iniciar_sesion(e):
+        correo = campo_correo.value.strip()
+        contrasena = campo_contrasena.value.strip()
+
+        if not correo or not contrasena:
+            mensaje_error.value = "Por favor completa todos los campos."
+            page.update()
+            return
+
+        contrasena_hash = hash_password(contrasena)
+
+        # Buscar en administradores
+        resultado_admin = (
+            supabase.table("administradores")
+            .select("*")
+            .eq("correo", correo)
+            .eq("contrasena", contrasena_hash)
+            .execute()
+        )
+
+        if resultado_admin.data:
+            ir_panel_admin(resultado_admin.data[0])
+            return
+
+        # Buscar en clientes
+        resultado_cliente = (
+            supabase.table("clientes")
+            .select("*")
+            .eq("correo", correo)
+            .eq("contrasena", contrasena_hash)
+            .execute()
+        )
+
+        if resultado_cliente.data:
+            ir_menu_cliente(resultado_cliente.data[0])
+            return
+
+        mensaje_error.value = "Correo o contraseña incorrectos."
+        page.update()
+
+    boton_login = ft.FilledButton(
+        "Iniciar Sesión",
         width=350,
         height=50,
+        on_click=iniciar_sesion,
         style=ft.ButtonStyle(
             bgcolor="#6D4C41",
             color="#FFFFFF",
@@ -45,7 +94,7 @@ def vista_login(page: ft.Page, ir_registro):
 
     boton_registro = ft.TextButton(
         "¿No tienes cuenta? Registrarse",
-         on_click=lambda e: ir_registro()
+        on_click=lambda e: ir_registro()
     )
 
     contenedor = ft.Container(
@@ -55,6 +104,7 @@ def vista_login(page: ft.Page, ir_registro):
                 subtitulo,
                 campo_correo,
                 campo_contrasena,
+                mensaje_error,
                 boton_login,
                 boton_registro
             ],
