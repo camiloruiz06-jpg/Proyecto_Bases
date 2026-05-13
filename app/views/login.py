@@ -1,7 +1,7 @@
 import flet as ft
 
 
-def vista_login(page: ft.Page):
+def vista_login(page: ft.Page, ir_registro):
 
     titulo = ft.Text(
         "Sistema de Reservas",
@@ -44,7 +44,8 @@ def vista_login(page: ft.Page):
     )
 
     boton_registro = ft.TextButton(
-        "¿No tienes cuenta? Registrarse"
+        "¿No tienes cuenta? Registrarse",
+         on_click=lambda e: ir_registro()
     )
 
     contenedor = ft.Container(

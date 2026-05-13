@@ -1,6 +1,7 @@
 import flet as ft
 
 from views.login import vista_login
+from views.registro import vista_registro
 
 
 def main(page: ft.Page):
@@ -13,9 +14,26 @@ def main(page: ft.Page):
     page.horizontal_alignment = "center"
     page.vertical_alignment = "center"
 
-    page.add(
-        vista_login(page)
-    )
+    # FUNCION PARA IR AL LOGIN
+    def mostrar_login():
+
+        page.clean()
+
+        page.add(
+            vista_login(page, mostrar_registro)
+        )
+
+    # FUNCION PARA IR AL REGISTRO
+    def mostrar_registro():
+
+        page.clean()
+
+        page.add(
+            vista_registro(page, mostrar_login)
+        )
+
+    # INICIAR EN LOGIN
+    mostrar_login()
 
 
 ft.run(main)
