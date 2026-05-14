@@ -1,6 +1,7 @@
 import flet as ft
 from views.login import vista_login
 from views.registro import vista_registro
+from views.panel_admin import vista_panel_admin
 
 
 def main(page: ft.Page):
@@ -22,11 +23,7 @@ def main(page: ft.Page):
 
     def ir_panel_admin(usuario):
         page.clean()
-        page.add(ft.Text(
-            f"Panel de Administración — Bienvenido {usuario['nombre_admin']}",
-            size=24,
-            color="#4E342E"
-        ))
+        page.add(vista_panel_admin(page, usuario, mostrar_login))
         page.update()
 
     def ir_menu_cliente(usuario):
