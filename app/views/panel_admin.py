@@ -1,3 +1,4 @@
+
 import flet as ft
 from data_base.supabase_client import supabase
 
@@ -47,13 +48,20 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
         )
 
     def ir_clientes():
+        from views.gestion_clientes import vista_gestion_clientes
         page.clean()
-        page.add(ft.Text("Gestión de Clientes — próximamente", size=24, color="#4E342E"))
+        page.add(vista_gestion_clientes(page, lambda: volver_panel(), usuario))
+        page.update()
+
+    def volver_panel():
+        page.clean()
+        page.add(vista_panel_admin(page, usuario, cerrar_sesion))
         page.update()
 
     def ir_mesas():
+        from views.gestion_mesas import vista_gestion_mesas
         page.clean()
-        page.add(ft.Text("Gestión de Mesas — próximamente", size=24, color="#4E342E"))
+        page.add(vista_gestion_mesas(page, volver_panel, usuario))
         page.update()
 
     def ir_reservas():
