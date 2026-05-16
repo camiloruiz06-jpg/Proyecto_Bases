@@ -21,14 +21,16 @@ def vista_login(page: ft.Page, ir_registro, ir_panel_admin, ir_menu_cliente):
     subtitulo = ft.Text(
         "Iniciar Sesión",
         size=20,
-        color="#6D4C41"
+        color="#212121"
     )
 
     campo_correo = ft.TextField(
         label="Correo electrónico",
         width=350,
         border_radius=10,
-        prefix_icon=ft.Icons.EMAIL
+        prefix_icon=ft.Icons.EMAIL,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
     )
 
     campo_contrasena = ft.TextField(
@@ -37,7 +39,9 @@ def vista_login(page: ft.Page, ir_registro, ir_panel_admin, ir_menu_cliente):
         can_reveal_password=True,
         width=350,
         border_radius=10,
-        prefix_icon=ft.Icons.LOCK
+        prefix_icon=ft.Icons.LOCK,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
     )
 
     def iniciar_sesion(e):
@@ -51,7 +55,6 @@ def vista_login(page: ft.Page, ir_registro, ir_panel_admin, ir_menu_cliente):
 
         contrasena_hash = hash_password(contrasena)
 
-        # Buscar en administradores
         resultado_admin = (
             supabase.table("administradores")
             .select("*")
@@ -64,7 +67,6 @@ def vista_login(page: ft.Page, ir_registro, ir_panel_admin, ir_menu_cliente):
             ir_panel_admin(resultado_admin.data[0])
             return
 
-        # Buscar en clientes
         resultado_cliente = (
             supabase.table("clientes")
             .select("*")

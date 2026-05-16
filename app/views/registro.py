@@ -11,52 +11,6 @@ def vista_registro(page: ft.Page, ir_login):
 
     mensaje_estado = ft.Text("", size=13)
 
-    titulo = ft.Text(
-        "Crear Cuenta",
-        size=32,
-        weight="bold",
-        color="#4E342E"
-    )
-
-    campo_nombre = ft.TextField(
-        label="Nombre completo",
-        width=350,
-        border_radius=10,
-        prefix_icon=ft.Icons.PERSON
-    )
-
-    campo_correo = ft.TextField(
-        label="Correo electrónico",
-        width=350,
-        border_radius=10,
-        prefix_icon=ft.Icons.EMAIL
-    )
-
-    campo_telefono = ft.TextField(
-        label="Teléfono (opcional)",
-        width=350,
-        border_radius=10,
-        prefix_icon=ft.Icons.PHONE
-    )
-
-    campo_contrasena = ft.TextField(
-        label="Contraseña",
-        password=True,
-        can_reveal_password=True,
-        width=350,
-        border_radius=10,
-        prefix_icon=ft.Icons.LOCK
-    )
-
-    campo_confirmar = ft.TextField(
-        label="Confirmar contraseña",
-        password=True,
-        can_reveal_password=True,
-        width=350,
-        border_radius=10,
-        prefix_icon=ft.Icons.LOCK_OUTLINE
-    )
-
     def registrar(e):
         nombre = campo_nombre.value.strip()
         correo = campo_correo.value.strip()
@@ -101,14 +55,12 @@ def vista_registro(page: ft.Page, ir_login):
             page.update()
             return
 
-        nuevo_cliente = {
+        resultado = supabase.table("clientes").insert({
             "nombre_cliente": nombre,
             "correo": correo,
             "telefono": telefono,
             "contrasena": hash_password(contrasena)
-        }
-
-        resultado = supabase.table("clientes").insert(nuevo_cliente).execute()
+        }).execute()
 
         if resultado.data:
             def cerrar_dialogo(e):
@@ -129,7 +81,6 @@ def vista_registro(page: ft.Page, ir_login):
                 ],
                 actions_alignment="center"
             )
-
             page.overlay.append(dialogo)
             dialogo.open = True
             page.update()
@@ -137,6 +88,55 @@ def vista_registro(page: ft.Page, ir_login):
             mensaje_estado.value = "Error al registrar. Intenta de nuevo."
             mensaje_estado.color = "red"
             page.update()
+
+    campo_nombre = ft.TextField(
+        label="Nombre completo",
+        width=350,
+        border_radius=10,
+        prefix_icon=ft.Icons.PERSON,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
+    )
+
+    campo_correo = ft.TextField(
+        label="Correo electrónico",
+        width=350,
+        border_radius=10,
+        prefix_icon=ft.Icons.EMAIL,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
+    )
+
+    campo_telefono = ft.TextField(
+        label="Teléfono (opcional)",
+        width=350,
+        border_radius=10,
+        prefix_icon=ft.Icons.PHONE,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
+    )
+
+    campo_contrasena = ft.TextField(
+        label="Contraseña",
+        password=True,
+        can_reveal_password=True,
+        width=350,
+        border_radius=10,
+        prefix_icon=ft.Icons.LOCK,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
+    )
+
+    campo_confirmar = ft.TextField(
+        label="Confirmar contraseña",
+        password=True,
+        can_reveal_password=True,
+        width=350,
+        border_radius=10,
+        prefix_icon=ft.Icons.LOCK_OUTLINE,
+        color="#212121",
+        label_style=ft.TextStyle(color="#4E342E")
+    )
 
     boton_registro = ft.FilledButton(
         "Registrarse",
@@ -155,10 +155,30 @@ def vista_registro(page: ft.Page, ir_login):
         on_click=lambda e: ir_login()
     )
 
+    # Botón volver arriba a la derecha
+    boton_volver_top = ft.IconButton(
+        icon=ft.Icons.ARROW_BACK,
+        tooltip="Volver al login",
+        on_click=lambda e: ir_login(),
+        icon_color="#6D4C41"
+    )
+
     contenedor = ft.Container(
         content=ft.Column(
             controls=[
-                titulo,
+                ft.Row(
+                    controls=[
+                        ft.Text(
+                            "Crear Cuenta",
+                            size=32,
+                            weight="bold",
+                            color="#4E342E",
+                            expand=True
+                        ),
+                        boton_volver_top
+                    ],
+                    alignment="spaceBetween"
+                ),
                 campo_nombre,
                 campo_correo,
                 campo_telefono,

@@ -1,6 +1,7 @@
-
 import flet as ft
 from data_base.supabase_client import supabase
+from datetime import date
+import locale
 
 
 def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
@@ -8,13 +9,19 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
     def obtener_stats():
         total_clientes = len(supabase.table("clientes").select("id_cliente").execute().data)
         mesas_disponibles = len(supabase.table("mesas").select("id_mesa").eq("estado", "disponible").execute().data)
-        from datetime import date
         hoy = str(date.today())
         reservas_hoy = len(supabase.table("reservas").select("id_reservas").eq("fecha", hoy).eq("estado_reserva", "confirmada").execute().data)
         total_reservas = len(supabase.table("reservas").select("id_reservas").eq("estado_reserva", "confirmada").execute().data)
         return total_clientes, mesas_disponibles, reservas_hoy, total_reservas
 
     total_clientes, mesas_disponibles, reservas_hoy, total_reservas = obtener_stats()
+
+    # Fecha actual
+    dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+             "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+    hoy = date.today()
+    fecha_texto = f"{dias[hoy.weekday()]}, {hoy.day} de {meses[hoy.month - 1]} de {hoy.year}"
 
     def tarjeta_stat(icono, titulo, valor, color):
         return ft.Container(
@@ -47,15 +54,15 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
             on_click=lambda e: destino()
         )
 
-    def ir_clientes():
-        from views.gestion_clientes import vista_gestion_clientes
-        page.clean()
-        page.add(vista_gestion_clientes(page, lambda: volver_panel(), usuario))
-        page.update()
-
     def volver_panel():
         page.clean()
         page.add(vista_panel_admin(page, usuario, cerrar_sesion))
+        page.update()
+
+    def ir_clientes():
+        from views.gestion_clientes import vista_gestion_clientes
+        page.clean()
+        page.add(vista_gestion_clientes(page, volver_panel, usuario))
         page.update()
 
     def ir_mesas():
@@ -65,8 +72,9 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
         page.update()
 
     def ir_reservas():
+        from views.gestion_reservas import vista_gestion_reservas
         page.clean()
-        page.add(ft.Text("Gestión de Reservas — próximamente", size=24, color="#4E342E"))
+        page.add(vista_gestion_reservas(page, volver_panel, usuario))
         page.update()
 
     def ir_historial():
@@ -106,13 +114,26 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
     contenido = ft.Container(
         content=ft.Column(
             controls=[
-                ft.Text(
-                    f"Bienvenido, {usuario['nombre_admin']} 👋",
-                    size=26,
-                    weight="bold",
-                    color="#4E342E"
+                ft.Row(
+                    controls=[
+                        ft.Column(
+                            controls=[
+                                ft.Text(
+                                    f"Bienvenido, {usuario['nombre_admin']} 👋",
+                                    size=26,
+                                    weight="bold",
+                                    color="#4E342E"
+                                ),
+                                ft.Text(
+                                    fecha_texto,
+                                    size=14,
+                                    color="#6D4C41"
+                                ),
+                            ],
+                            spacing=4
+                        )
+                    ]
                 ),
-                ft.Text("Panel de Administración", size=14, color="#6D4C41"),
                 ft.Divider(),
                 ft.Text("Resumen del sistema", size=16, weight="bold", color="#4E342E"),
                 ft.Row(
