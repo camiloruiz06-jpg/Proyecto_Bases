@@ -11,7 +11,6 @@ def vista_gestion_mesas(page: ft.Page, volver_panel, usuario):
         prefix_icon=ft.Icons.PEOPLE, keyboard_type=ft.KeyboardType.NUMBER,
         color="#212121", label_style=ft.TextStyle(color="#4E342E")
     )
-
     campo_ubicacion = ft.Dropdown(
         label="Ubicación", width=300,
         options=[
@@ -20,7 +19,6 @@ def vista_gestion_mesas(page: ft.Page, volver_panel, usuario):
             ft.dropdown.Option("Salón Privado"),
         ]
     )
-
     campo_estado = ft.Dropdown(
         label="Estado", width=300,
         options=[
@@ -29,7 +27,6 @@ def vista_gestion_mesas(page: ft.Page, volver_panel, usuario):
         ],
         value="disponible"
     )
-
     campo_buscar_id = ft.TextField(
         label="Buscar por ID", width=200, border_radius=10,
         prefix_icon=ft.Icons.SEARCH, keyboard_type=ft.KeyboardType.NUMBER,
@@ -217,7 +214,8 @@ def vista_gestion_mesas(page: ft.Page, volver_panel, usuario):
     contenido = ft.Column(
         controls=[
             ft.Row(controls=[
-                ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda e: volver_panel(), tooltip="Volver al panel"),
+                ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda e: volver_panel(),
+                    tooltip="Volver al panel"),
                 ft.Text("Gestión de Mesas", size=24, weight="bold", color="#4E342E")
             ]),
             formulario,
