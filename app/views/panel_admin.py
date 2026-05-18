@@ -1,3 +1,4 @@
+
 import flet as ft
 from data_base.supabase_client import supabase
 from datetime import date
@@ -78,8 +79,9 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
         page.update()
 
     def ir_historial():
+        from views.historial import vista_historial
         page.clean()
-        page.add(ft.Text("Historial — próximamente", size=24, color="#4E342E"))
+        page.add(vista_historial(page, volver_panel, usuario))
         page.update()
 
     sidebar = ft.Container(
