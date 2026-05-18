@@ -85,7 +85,7 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
 
         def validar_fecha_hora(fecha, hora):
             try:
-                datetime.strptime(fecha, "%Y-%m-%d")
+                fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").date()
             except ValueError:
                 mensaje.value = "Fecha inválida. Usa YYYY-MM-DD (ej: 2026-05-17)"
                 mensaje.color = ERROR
@@ -98,6 +98,24 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
                 mensaje.color = ERROR
                 page.update()
                 return False
+
+            if fecha_dt < hoy:
+                mensaje.value = "No puedes reservar en una fecha pasada."
+                mensaje.color = ERROR
+                page.update()
+                return False
+
+            mes_max = hoy.month + 3
+            año_max = hoy.year + (mes_max - 1) // 12
+            mes_max = ((mes_max - 1) % 12) + 1
+            max_fecha = date(año_max, mes_max, hoy.day)
+
+            if fecha_dt > max_fecha:
+                mensaje.value = f"Solo puedes reservar hasta {max_fecha} (máximo 3 meses)."
+                mensaje.color = ERROR
+                page.update()
+                return False
+
             return True
 
         def buscar_mesas(e):
@@ -159,33 +177,42 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
             if not validar_fecha_hora(fecha, hora):
                 return
 
-            supabase.table("reservas").insert({
-                "id_cliente": usuario["id_cliente"],
-                "id_mesa": int(id_mesa),
-                "fecha": fecha,
-                "hora": hora,
-                "numero_personas": int(personas),
-                "estado_reserva": "confirmada"
-            }).execute()
+            try:
+                supabase.table("reservas").insert({
+                    "id_cliente": usuario["id_cliente"],
+                    "id_mesa": int(id_mesa),
+                    "fecha": fecha,
+                    "hora": hora,
+                    "numero_personas": int(personas),
+                    "estado_reserva": "confirmada"
+                }).execute()
 
-            def cerrar(e):
-                dialogo.open = False
+                def cerrar(e):
+                    dialogo.open = False
+                    page.update()
+                    limpiar_contenido()
+
+                dialogo = ft.AlertDialog(
+                    modal=True,
+                    title=ft.Text("¡Reserva confirmada!", color=SUCCESS, weight="bold"),
+                    content=ft.Text(f"Tu mesa fue reservada para el {fecha} a las {hora}."),
+                    actions=[
+                        ft.FilledButton("Perfecto", on_click=cerrar,
+                            style=ft.ButtonStyle(bgcolor=PRIMARY, color="#FFFFFF"))
+                    ],
+                    actions_alignment="center"
+                )
+                page.overlay.append(dialogo)
+                dialogo.open = True
                 page.update()
-                limpiar_contenido()
 
-            dialogo = ft.AlertDialog(
-                modal=True,
-                title=ft.Text("¡Reserva confirmada!", color=SUCCESS, weight="bold"),
-                content=ft.Text(f"Tu mesa fue reservada para el {fecha} a las {hora}."),
-                actions=[
-                    ft.FilledButton("Perfecto", on_click=cerrar,
-                        style=ft.ButtonStyle(bgcolor=PRIMARY, color="#FFFFFF"))
-                ],
-                actions_alignment="center"
-            )
-            page.overlay.append(dialogo)
-            dialogo.open = True
-            page.update()
+            except Exception as ex:
+                if "23505" in str(ex):
+                    mensaje.value = "Esa mesa ya no está disponible para ese horario."
+                else:
+                    mensaje.value = "Error al reservar. Intenta de nuevo."
+                mensaje.color = ERROR
+                page.update()
 
         vista = ft.Container(
             content=ft.Column(
@@ -217,6 +244,36 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
     # ========= MIS RESERVAS =========
     def mostrar_mis_reservas(e=None):
 
+        filtro_estado = ft.Dropdown(
+            label="Estado",
+            width=160,
+            options=[
+                ft.dropdown.Option("todos"),
+                ft.dropdown.Option("confirmada"),
+                ft.dropdown.Option("cancelada"),
+            ],
+            value="todos",
+            label_style=ft.TextStyle(color=PRIMARY)
+        )
+
+        campo_desde = ft.TextField(
+            label="Desde (YYYY-MM-DD)",
+            width=180, border_radius=10,
+            color=TEXT_PRIMARY,
+            label_style=ft.TextStyle(color=PRIMARY),
+            border_color=ACCENT, focused_border_color=PRIMARY
+        )
+
+        campo_hasta = ft.TextField(
+            label="Hasta (YYYY-MM-DD)",
+            width=180, border_radius=10,
+            color=TEXT_PRIMARY,
+            label_style=ft.TextStyle(color=PRIMARY),
+            border_color=ACCENT, focused_border_color=PRIMARY
+        )
+
+        mensaje_filtro = ft.Text("", size=13)
+
         tabla = ft.DataTable(
             columns=[
                 ft.DataColumn(ft.Text("Fecha", weight="bold", color=PRIMARY_DARK)),
@@ -224,24 +281,44 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
                 ft.DataColumn(ft.Text("Mesa", weight="bold", color=PRIMARY_DARK)),
                 ft.DataColumn(ft.Text("Personas", weight="bold", color=PRIMARY_DARK)),
                 ft.DataColumn(ft.Text("Estado", weight="bold", color=PRIMARY_DARK)),
-                ft.DataColumn(ft.Text("Acción", weight="bold", color=PRIMARY_DARK)),
+                ft.DataColumn(ft.Text("Acciones", weight="bold", color=PRIMARY_DARK)),
             ],
             rows=[],
             heading_row_color="#F5F1E8"
         )
 
-        def cargar():
-            resultado = supabase.table("reservas").select(
+        def cargar(estado=None, desde=None, hasta=None):
+            query = supabase.table("reservas").select(
                 "*, mesas(ubicacion)"
-            ).eq("id_cliente", usuario["id_cliente"]).execute()
+            ).eq("id_cliente", usuario["id_cliente"])
+
+            if estado and estado != "todos":
+                query = query.eq("estado_reserva", estado)
+            if desde:
+                query = query.gte("fecha", desde)
+            if hasta:
+                query = query.lte("fecha", hasta)
+
+            resultado = query.order("fecha", desc=True).execute()
             tabla.rows.clear()
+
+            if not resultado.data:
+                mensaje_filtro.value = "No se encontraron reservas."
+                mensaje_filtro.color = PRIMARY
+                page.update()
+                return
+
+            mensaje_filtro.value = f"{len(resultado.data)} reserva(s) encontrada(s)."
+            mensaje_filtro.color = SUCCESS
+
             for r in resultado.data:
                 color_estado = SUCCESS if r["estado_reserva"] == "confirmada" else ERROR
                 ubicacion = r["mesas"]["ubicacion"] if r.get("mesas") else "—"
+                hora_limpia = str(r["hora"])[:5]
                 tabla.rows.append(
                     ft.DataRow(cells=[
                         ft.DataCell(ft.Text(str(r["fecha"]), color=TEXT_PRIMARY)),
-                        ft.DataCell(ft.Text(str(r["hora"]), color=TEXT_PRIMARY)),
+                        ft.DataCell(ft.Text(hora_limpia, color=TEXT_PRIMARY)),
                         ft.DataCell(ft.Text(f"Mesa {r['id_mesa']} - {ubicacion}", color=TEXT_PRIMARY)),
                         ft.DataCell(ft.Text(str(r["numero_personas"]), color=TEXT_PRIMARY)),
                         ft.DataCell(ft.Container(
@@ -251,15 +328,40 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
                             padding=ft.Padding(left=8, right=8, top=3, bottom=3)
                         )),
                         ft.DataCell(
-                            ft.TextButton("Cancelar",
-                                style=ft.ButtonStyle(color=ERROR),
-                                on_click=lambda e, res=r: cancelar(res),
-                                disabled=r["estado_reserva"] == "cancelada"
-                            )
+                            ft.Row(controls=[
+                                ft.IconButton(
+                                    icon=ft.Icons.EDIT,
+                                    icon_color=PRIMARY,
+                                    tooltip="Editar",
+                                    disabled=r["estado_reserva"] == "cancelada",
+                                    on_click=lambda e, res=r: mostrar_editar_reserva(res)
+                                ),
+                                ft.IconButton(
+                                    icon=ft.Icons.CANCEL,
+                                    icon_color=ERROR,
+                                    tooltip="Cancelar",
+                                    disabled=r["estado_reserva"] == "cancelada",
+                                    on_click=lambda e, res=r: cancelar(res)
+                                )
+                            ])
                         )
                     ])
                 )
             page.update()
+
+        def aplicar_filtros(e):
+            cargar(
+                estado=filtro_estado.value,
+                desde=campo_desde.value.strip() or None,
+                hasta=campo_hasta.value.strip() or None
+            )
+
+        def limpiar_filtros(e):
+            filtro_estado.value = "todos"
+            campo_desde.value = ""
+            campo_hasta.value = ""
+            mensaje_filtro.value = ""
+            cargar()
 
         def cancelar(r):
             def confirmar(e):
@@ -289,6 +391,147 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
             dialogo.open = True
             page.update()
 
+        def mostrar_editar_reserva(r):
+            mensaje_editar = ft.Text("", size=13)
+
+            campo_fecha_e = ft.TextField(
+                label="Nueva fecha (YYYY-MM-DD)",
+                value=str(r["fecha"]),
+                width=320, border_radius=10, color=TEXT_PRIMARY,
+                label_style=ft.TextStyle(color=PRIMARY),
+                border_color=ACCENT, focused_border_color=PRIMARY
+            )
+            campo_hora_e = ft.TextField(
+                label="Nueva hora (HH:MM)",
+                value=str(r["hora"])[:5],
+                width=320, border_radius=10, color=TEXT_PRIMARY,
+                label_style=ft.TextStyle(color=PRIMARY),
+                border_color=ACCENT, focused_border_color=PRIMARY
+            )
+            campo_personas_e = ft.TextField(
+                label="Número de personas",
+                value=str(r["numero_personas"]),
+                keyboard_type=ft.KeyboardType.NUMBER,
+                width=320, border_radius=10, color=TEXT_PRIMARY,
+                label_style=ft.TextStyle(color=PRIMARY),
+                border_color=ACCENT, focused_border_color=PRIMARY
+            )
+
+            def validar(fecha, hora):
+                try:
+                    fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").date()
+                except ValueError:
+                    mensaje_editar.value = "Fecha inválida. Usa YYYY-MM-DD"
+                    mensaje_editar.color = ERROR
+                    page.update()
+                    return False
+                try:
+                    datetime.strptime(hora, "%H:%M")
+                except ValueError:
+                    mensaje_editar.value = "Hora inválida. Usa HH:MM"
+                    mensaje_editar.color = ERROR
+                    page.update()
+                    return False
+                if fecha_dt < hoy:
+                    mensaje_editar.value = "No puedes reservar en una fecha pasada."
+                    mensaje_editar.color = ERROR
+                    page.update()
+                    return False
+                mes_max = hoy.month + 3
+                año_max = hoy.year + (mes_max - 1) // 12
+                mes_max = ((mes_max - 1) % 12) + 1
+                max_fecha = date(año_max, mes_max, hoy.day)
+                if fecha_dt > max_fecha:
+                    mensaje_editar.value = f"Máximo hasta {max_fecha}."
+                    mensaje_editar.color = ERROR
+                    page.update()
+                    return False
+                return True
+
+            def guardar_cambios(e):
+                fecha = campo_fecha_e.value.strip()
+                hora = campo_hora_e.value.strip()
+                personas = campo_personas_e.value.strip()
+
+                if not fecha or not hora or not personas:
+                    mensaje_editar.value = "Completa todos los campos."
+                    mensaje_editar.color = ERROR
+                    page.update()
+                    return
+
+                if not personas.isdigit() or int(personas) <= 0:
+                    mensaje_editar.value = "Número de personas inválido."
+                    mensaje_editar.color = ERROR
+                    page.update()
+                    return
+
+                if not validar(fecha, hora):
+                    return
+
+                try:
+                    supabase.table("reservas").update({
+                        "fecha": fecha,
+                        "hora": hora,
+                        "numero_personas": int(personas)
+                    }).eq("id_reservas", r["id_reservas"]).execute()
+
+                    def cerrar(e):
+                        dialogo.open = False
+                        page.update()
+                        mostrar_mis_reservas()
+
+                    dialogo = ft.AlertDialog(
+                        modal=True,
+                        title=ft.Text("¡Reserva actualizada!", color=SUCCESS, weight="bold"),
+                        content=ft.Text(f"Tu reserva fue actualizada para el {fecha} a las {hora}."),
+                        actions=[
+                            ft.FilledButton("Perfecto", on_click=cerrar,
+                                style=ft.ButtonStyle(bgcolor=PRIMARY, color="#FFFFFF"))
+                        ],
+                        actions_alignment="center"
+                    )
+                    page.overlay.append(dialogo)
+                    dialogo.open = True
+                    page.update()
+
+                except Exception as ex:
+                    if "23505" in str(ex):
+                        mensaje_editar.value = "Esa mesa ya está ocupada para esa fecha y hora."
+                    else:
+                        mensaje_editar.value = "Error al actualizar. Intenta de nuevo."
+                    mensaje_editar.color = ERROR
+                    page.update()
+
+            vista_editar = ft.Container(
+                content=ft.Column(
+                    controls=[
+                        ft.Row(controls=[
+                            ft.IconButton(icon=ft.Icons.ARROW_BACK, icon_color=PRIMARY,
+                                on_click=lambda e: mostrar_mis_reservas()),
+                            ft.Text("Editar Reserva", size=24, weight="bold", color=PRIMARY_DARK)
+                        ]),
+                        ft.Text(
+                            f"Modificando reserva #{r['id_reservas']}",
+                            size=13, color=TEXT_SECONDARY
+                        ),
+                        campo_fecha_e,
+                        campo_hora_e,
+                        campo_personas_e,
+                        mensaje_editar,
+                        ft.FilledButton("Guardar cambios", on_click=guardar_cambios,
+                            style=ft.ButtonStyle(bgcolor=PRIMARY, color="#FFFFFF")),
+                    ],
+                    spacing=18, scroll="auto"
+                ),
+                bgcolor=BG_CARD, padding=30, border_radius=20, width=420,
+                shadow=ft.BoxShadow(blur_radius=10, color="#00000022")
+            )
+
+            page.clean()
+            page.bgcolor = BG_MAIN
+            page.add(ft.Container(content=vista_editar, alignment=ft.Alignment(0, 0), expand=True))
+            page.update()
+
         vista = ft.Container(
             content=ft.Column(
                 controls=[
@@ -297,6 +540,25 @@ def vista_menu_cliente(page: ft.Page, usuario, cerrar_sesion):
                             on_click=lambda e: limpiar_contenido()),
                         ft.Text("Mis Reservas", size=24, weight="bold", color=PRIMARY_DARK)
                     ]),
+                    ft.Container(
+                        content=ft.Column(
+                            controls=[
+                                ft.Text("Filtros", size=14, weight="bold", color=PRIMARY_DARK),
+                                ft.Row(controls=[
+                                    campo_desde, campo_hasta, filtro_estado
+                                ], spacing=10, wrap=True),
+                                ft.Row(controls=[
+                                    ft.FilledButton("Buscar", on_click=aplicar_filtros,
+                                        style=ft.ButtonStyle(bgcolor=PRIMARY, color="#FFFFFF")),
+                                    ft.OutlinedButton("Limpiar", on_click=limpiar_filtros)
+                                ], spacing=10),
+                                mensaje_filtro
+                            ],
+                            spacing=10
+                        ),
+                        bgcolor=BG_CARD, border_radius=15, padding=15,
+                        shadow=ft.BoxShadow(blur_radius=8, color="#00000022")
+                    ),
                     ft.Container(
                         content=tabla, bgcolor=BG_CARD, border_radius=10, padding=10,
                         shadow=ft.BoxShadow(blur_radius=10, color="#00000022")
