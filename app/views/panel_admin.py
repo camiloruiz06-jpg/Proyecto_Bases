@@ -83,6 +83,12 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
         page.clean()
         page.add(vista_historial(page, volver_panel, usuario))
         page.update()
+    
+    def ir_notificaciones():
+        from views.notificaciones import vista_notificaciones
+        page.clean()
+        page.add(vista_notificaciones(page, volver_panel, usuario))
+        page.update()
 
     sidebar = ft.Container(
         content=ft.Column(
@@ -92,6 +98,7 @@ def vista_panel_admin(page: ft.Page, usuario, cerrar_sesion):
                 boton_nav(ft.Icons.PEOPLE, "Clientes", ir_clientes),
                 boton_nav(ft.Icons.TABLE_RESTAURANT, "Mesas", ir_mesas),
                 boton_nav(ft.Icons.BOOK_ONLINE, "Reservas", ir_reservas),
+                boton_nav(ft.Icons.NOTIFICATIONS, "Notificaciones", ir_notificaciones),
                 boton_nav(ft.Icons.HISTORY, "Historial", ir_historial),
                 ft.Divider(color="#FFFFFF44"),
                 ft.TextButton(
